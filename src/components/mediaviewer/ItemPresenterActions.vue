@@ -87,8 +87,8 @@ function returnHome() {
   void router.push({ path: '/' })
 }
 
-async function postProcessingAction(url: string) {
-  const response = await _fetch(url, { method: 'POST' })
+async function sendProcessingAction(url: string) {
+  const response = await _fetch(url)
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status} ${response.statusText}`)
   }
@@ -101,7 +101,7 @@ async function abortCapture() {
 
   isNavigating.value = true
   try {
-    await postProcessingAction('/api/processing/abort')
+    await sendProcessingAction('/api/processing/abort')
     returnHome()
   } catch (error) {
     isNavigating.value = false
@@ -116,8 +116,8 @@ async function rejectCapture() {
 
   isNavigating.value = true
   try {
-    await postProcessingAction('/api/processing/reject')
-    returnHome()
+    await sendProcessingAction('/api/processing/reject')
+    isNavigating.value = false
   } catch (error) {
     isNavigating.value = false
     notifyError(error)
@@ -131,7 +131,7 @@ async function confirmCapture() {
 
   isConfirming.value = true
   try {
-    await postProcessingAction('/api/processing/confirm')
+    await sendProcessingAction('/api/processing/confirm')
     const url = await getShareUrl(props.mediaitemId)
     shareUrl.value = url
     showQrOverlay.value = true
