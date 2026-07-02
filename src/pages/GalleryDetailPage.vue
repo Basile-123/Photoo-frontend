@@ -11,7 +11,15 @@
         <HeaderProcessing v-if="displayIndeterminateProgressbar"></HeaderProcessing>
       </q-header>
 
-      <q-drawer v-if="showFilter" id="gallery-drawer-filters" v-model="rightDrawerOpen" class="q-pa-sm" side="right" overlay elevated>
+      <q-drawer
+        v-if="showNativeToolbar && showFilter"
+        id="gallery-drawer-filters"
+        v-model="rightDrawerOpen"
+        class="q-pa-sm"
+        side="right"
+        overlay
+        elevated
+      >
         <DrawerFilter
           v-if="rightDrawerOpen"
           :id="currentMediaitem.id"
@@ -43,7 +51,9 @@
             />
           </q-page-sticky>
 
+          <ItemPresenterActions v-if="itemPresenterMode" :mediaitem-id="currentMediaitem.id" />
           <PageToolbar
+            v-else
             :item="currentMediaitem"
             :show-filter="configurationStore.configuration.uisettings.gallery_show_filter"
             :enable-filter="filterEnabled(currentMediaitem.media_type)"
@@ -93,6 +103,7 @@ import { useMediacollectionStore } from '../stores/mediacollection-store'
 import { ref, onBeforeMount, computed, onMounted, watch } from 'vue'
 import { default as PageShareParameters } from '../components/mediaviewer/PageShareParameters.vue'
 import { default as PageToolbar } from '../components/mediaviewer/PageToolbar.vue'
+import { default as ItemPresenterActions } from '../components/mediaviewer/ItemPresenterActions.vue'
 import { default as HeaderCountdownTimer } from '../components/mediaviewer/HeaderCountdownTimer.vue'
 import { default as HeaderProcessing } from '../components/mediaviewer/HeaderProcessing.vue'
 import { default as DrawerFilter } from '../components/mediaviewer/DrawerFilter.vue'
@@ -141,6 +152,7 @@ const onCarouselTransition = (newMediaitemId: string) => {
 const currentMediaitem = computed(() => {
   return getMediaitemById(selectedMediaitemId.value)
 })
+const showNativeToolbar = computed(() => !props.itemPresenterMode)
 
 watchDebounced(
   selectedMediaitemId,
