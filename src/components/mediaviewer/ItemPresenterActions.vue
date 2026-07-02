@@ -58,13 +58,18 @@ import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import QrcodeVue from 'qrcode.vue'
 import { _fetch } from 'src/util/fetch_api'
+import { useConfigurationStore } from 'src/stores/configuration-store'
+import { useStateStore } from 'src/stores/state-store'
 
 const props = defineProps<{
   mediaitemId: string
+  mediaType: string
 }>()
 
 const $q = useQuasar()
 const router = useRouter()
+const configurationStore = useConfigurationStore()
+const stateStore = useStateStore()
 const isConfirming = ref(false)
 const isNavigating = ref(false)
 const showQrOverlay = ref(false)
@@ -87,11 +92,42 @@ function returnHome() {
   void router.push({ path: '/' })
 }
 
-async function sendProcessingAction(url: string) {
+async function sendAction(url: string) {
   const response = await _fetch(url)
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status} ${response.statusText}`)
   }
+}
+
+function normalizeForComparison(value: unknown) {
+  return JSON.stringify(value)
+}
+
+function resolveAction() {
+  const actionType =
+    stateStore.jobmodel.present_mediaitem_id === props.mediaitemId && stateStore.jobmodel.typ ? stateStore.jobmodel.typ : props.mediaType
+
+  if (!['image', 'collage'].includes(actionType)) {
+    throw new Error(`Unsupported action type for retry: ${actionType}`)
+  }
+
+  const actions = configurationStore.configuration.actions[actionType]
+  if (!Array.isArray(actions) || actions.length === 0) {
+    throw new Error(`No configured action found for type: ${actionType}`)
+  }
+
+  const lastConfigurationSet = stateStore.jobmodel.present_mediaitem_id === props.mediaitemId ? stateStore.jobmodel.configuration_set : null
+  const actionIndex = lastConfigurationSet
+    ? actions.findIndex((action) => normalizeForComparison(action) === normalizeForComparison(lastConfigurationSet))
+    : actions.length === 1
+      ? 0
+      : -1
+
+  if (actionIndex < 0) {
+    throw new Error(`Cannot identify the source action for this ${actionType}.`)
+  }
+
+  return { actionType, actionIndex }
 }
 
 async function abortCapture() {
@@ -99,14 +135,7 @@ async function abortCapture() {
     return
   }
 
-  isNavigating.value = true
-  try {
-    await sendProcessingAction('/api/processing/abort')
-    returnHome()
-  } catch (error) {
-    isNavigating.value = false
-    notifyError(error)
-  }
+  returnHome()
 }
 
 async function rejectCapture() {
@@ -116,8 +145,11 @@ async function rejectCapture() {
 
   isNavigating.value = true
   try {
-    await sendProcessingAction('/api/processing/reject')
-    isNavigating.value = false
+    clearCountdown()
+    showQrOverlay.value = false
+    const { actionType, actionIndex } = resolveAction()
+    await sendAction(`/api/actions/${actionType}/${actionIndex}`)
+    returnHome()
   } catch (error) {
     isNavigating.value = false
     notifyError(error)
@@ -131,7 +163,6 @@ async function confirmCapture() {
 
   isConfirming.value = true
   try {
-    await sendProcessingAction('/api/processing/confirm')
     const url = await getShareUrl(props.mediaitemId)
     shareUrl.value = url
     showQrOverlay.value = true

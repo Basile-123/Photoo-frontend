@@ -51,7 +51,7 @@
             />
           </q-page-sticky>
 
-          <ItemPresenterActions v-if="itemPresenterMode" :mediaitem-id="currentMediaitem.id" />
+          <ItemPresenterActions v-if="itemPresenterMode" :mediaitem-id="currentMediaitem.id" :media-type="currentMediaitem.media_type" />
           <PageToolbar
             v-else
             :item="currentMediaitem"
